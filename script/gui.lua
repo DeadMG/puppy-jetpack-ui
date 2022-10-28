@@ -1,10 +1,33 @@
 local gui = require("lib.gui")
 local event = require("__flib__.event")
 
+local fuels = {
+  ["rocket-fuel"] = true,
+  ["nuclear-fuel"] = true,
+  ["processed-fuel"] = true,
+  ["rocket-booster"] = true,
+}
+
 local windowName = "jetpack-ui"
 
 function toolbarHeight(scale)
     return scale * 135
+end
+
+function renderTime(seconds)
+    seconds = math.floor(seconds)
+    
+    if seconds < 60 then
+        return {"time-symbol-seconds", seconds }
+    end
+
+    local minutes = math.floor(seconds / 60)
+    if minutes < 60 then
+        return {"",  {"time-symbol-minutes", minutes }, " ", {"time-symbol-seconds", seconds % 60 } }
+    end
+    
+    local hours = math.floor(seconds / 3600)
+    return {"",  {"time-symbol-hours", hours }, " ", {"time-symbol-minutes", minutes % 60 }, " ", {"time-symbol-seconds", seconds % 60 } }
 end
 
 function syncDataToUI(player_index)
@@ -13,9 +36,21 @@ function syncDataToUI(player_index)
     
     if not ui_state.dialog then return end
     
-    ui_state.dialog.fuel_remaining.value = ui_state.fuel_remaining
+    local total = ui_state.remaining_energy
+    for fuelType, _ in pairs(fuels) do
+        local proto = game.item_prototypes[fuelType]
+        if proto then
+            total = total + player.get_item_count(fuelType) * proto.fuel_value
+        end
+    end
+    
+    ui_state.dialog.fuel_remaining.value = ui_state.remaining_energy / game.item_prototypes[ui_state.item_name].fuel_value
     ui_state.dialog.item_icon.sprite = "item/" .. ui_state.item_name
     ui_state.dialog.item_count.caption = player.get_item_count(ui_state.item_name)
+    
+    if ui_state.estimated_consumption then
+        ui_state.dialog.estimated_time.caption = {"jetpack-ui.estimated-remaining", renderTime(total / ui_state.estimated_consumption) }
+    end
 end
 
 function ensureWindow(player_index)
@@ -31,6 +66,7 @@ function ensureWindow(player_index)
                 {type="sprite", elem_type="item", sprite=nil, save_as="item_icon", style_mods= { height = 14, width = 14 } },
                 {type="label", save_as="item_count" },
                 {type="progressbar", save_as="fuel_remaining", style_mods= { color={r=1, g=0.667, b=0.2}, vertical_align="center", width="134" } }}},
+            {type="label", save_as="estimated_time", caption=nil },
             }}})
             
     dialog.main_container.drag_target = dialog.main_window
@@ -103,7 +139,15 @@ function syncData()
             global.ui_state[jetpack.player_index] = global.ui_state[jetpack.player_index] or {}
             
             local ui_state = global.ui_state[jetpack.player_index]
-            ui_state.fuel_remaining = jetpack.fuel.energy / game.item_prototypes[jetpack.fuel.name].fuel_value
+            
+            if ui_state.remaining_energy then         
+                local consumption = ui_state.remaining_energy - jetpack.fuel.energy
+                local timeTaken = game.tick - ui_state.synced_tick
+                ui_state.estimated_consumption = consumption * (60 / timeTaken)
+            end
+            
+            ui_state.synced_tick = game.tick
+            ui_state.remaining_energy = jetpack.fuel.energy
             ui_state.item_name = jetpack.fuel.name
             
             ensureWindow(jetpack.player_index)
