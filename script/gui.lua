@@ -18,16 +18,16 @@ function renderTime(seconds)
     seconds = math.floor(seconds)
     
     if seconds < 60 then
-        return {"time-symbol-seconds", seconds }
+        return {"time-symbol-seconds-short", seconds }
     end
 
     local minutes = math.floor(seconds / 60)
     if minutes < 60 then
-        return {"",  {"time-symbol-minutes", minutes }, " ", {"time-symbol-seconds", seconds % 60 } }
+        return {"",  {"time-symbol-minutes-short", minutes }, " ", {"time-symbol-seconds-short", seconds % 60 } }
     end
     
     local hours = math.floor(seconds / 3600)
-    return {"",  {"time-symbol-hours", hours }, " ", {"time-symbol-minutes", minutes % 60 }, " ", {"time-symbol-seconds", seconds % 60 } }
+    return {"",  {"time-symbol-hours-short", hours }, " ", {"time-symbol-minutes-short", minutes % 60 }, " ", {"time-symbol-seconds-short", seconds % 60 } }
 end
 
 function syncDataToUI(player_index)
@@ -61,15 +61,19 @@ function ensureWindow(player_index)
     if rootgui[windowName] then return end
     
     local dialog = gui.build(rootgui, {
-        {type="frame", direction="vertical", save_as="main_window", name=windowName, children={
-            {type="flow", save_as="main_container", style_mods= {vertical_align="center"}, children={
-                {type="sprite", elem_type="item", sprite=nil, save_as="item_icon", style_mods= { height = 14, width = 14 } },
-                {type="label", save_as="item_count" },
-                {type="progressbar", save_as="fuel_remaining", style_mods= { color={r=1, g=0.667, b=0.2}, vertical_align="center", width="134" } }}},
-            {type="label", save_as="estimated_time", caption=nil },
-            }}})
+        {type="frame", direction="vertical", save_as="main_window", name=windowName, style_mods={left_padding=0,left_margin=0, bottom_margin=0}, children={
+            {type="flow", style_mods={left_padding=0,left_margin=-6}, children={
+                {type = "empty-widget", style="draggable_space",  style_mods={left_padding=0, left_margin=0}, save_as="drag_handle", style_mods={width=8, height=45} },
+                {type="flow", direction="vertical", children = {
+                    {type="flow", save_as="main_container", style_mods= {vertical_align="center", left_margin=0}, children={
+                        {type="sprite", elem_type="item", sprite=nil, save_as="item_icon", style_mods= { height = 14, width = 14 } },
+                        {type="label", save_as="item_count" },
+                        {type="progressbar", save_as="fuel_remaining", style_mods= { color={r=1, g=0.667, b=0.2}, vertical_align="center", width="120" } }}},
+                    {type="label", save_as="estimated_time", caption=nil },
+                }}    
+            }}}}})
             
-    dialog.main_container.drag_target = dialog.main_window
+    dialog.drag_handle.drag_target = dialog.main_window
     global.ui_state[player_index].dialog = dialog    
     
     local ui_state = global.ui_state[player_index]
@@ -113,7 +117,6 @@ end
 function registerTemplates() 
   gui.add_templates{
     frame_action_button = {type="sprite-button", style="frame_action_button", mouse_button_filter={"left"}},
-    drag_handle = {type="empty-widget", style="flib_titlebar_drag_handle", elem_mods={ignored_by_interaction=true}},
   }
 end
 
