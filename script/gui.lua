@@ -136,7 +136,7 @@ function syncData()
     local jetpacks = remote.call('jetpack', 'get_jetpacks', {})
 
     for _, jetpack in pairs(jetpacks) do
-        if jetpack.status == 'stopping' or not jetpack.fuel then
+        if jetpack.status == 'stopping' or not jetpack.fuel or jetpack.fuel.name == 'spacewalking' then
             closeGui(jetpack.player_index)
         else
             global.ui_state[jetpack.player_index] = global.ui_state[jetpack.player_index] or {}
