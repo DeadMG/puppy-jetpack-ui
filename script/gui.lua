@@ -1,13 +1,6 @@
 local gui = require("lib.gui")
 local event = require("__flib__.event")
 
-local fuels = {
-  ["rocket-fuel"] = true,
-  ["nuclear-fuel"] = true,
-  ["processed-fuel"] = true,
-  ["rocket-booster"] = true,
-}
-
 local windowName = "jetpack-ui"
 
 function toolbarHeight(scale)
@@ -36,6 +29,7 @@ function syncDataToUI(player_index)
     
     if not ui_state.dialog then return end
     
+    local fuels = remote.call('jetpack', 'get_fuels', {})    
     local total = ui_state.remaining_energy
     for fuelType, _ in pairs(fuels) do
         local proto = game.item_prototypes[fuelType]
@@ -96,7 +90,7 @@ function closeGui(player_index)
     if rootgui[windowName] then
         rootgui[windowName].destroy()	
         if global.ui_state and global.ui_state[player_index] then
-            global.ui_state[player_index].dialog = nil
+            global.ui_state[player_index] = {}
         end
     end
 end
@@ -133,34 +127,34 @@ end
 function syncData()
     global.ui_state = global.ui_state or {}
     
-    local jetpacks = remote.call('jetpack', 'get_jetpacks', {})
-
-    for _, jetpack in pairs(jetpacks) do
-        if jetpack.status == 'stopping' or not jetpack.fuel or jetpack.fuel.name == 'spacewalking' then
-            closeGui(jetpack.player_index)
-        else
-            global.ui_state[jetpack.player_index] = global.ui_state[jetpack.player_index] or {}
-            
-            local ui_state = global.ui_state[jetpack.player_index]
-            
-            if ui_state.remaining_energy then         
-                local consumption = ui_state.remaining_energy - jetpack.fuel.energy
-                local timeTaken = game.tick - ui_state.synced_tick
-                ui_state.estimated_consumption = consumption * (60 / timeTaken)
+    local fuels = remote.call("jetpack", "get_current_fuels");
+    for k, player in pairs(game.players) do
+        local character = player.character
+        if character and character.valid then
+            local is_jetpacking = remote.call("jetpack", "is_jetpacking", {character=character})
+            if not is_jetpacking then
+                closeGui(player.index)
+            else
+                global.ui_state[player.index] = global.ui_state[player.index] or {}
+                
+                local ui_state = global.ui_state[player.index]
+                local fuel = fuels[character.unit_number]
+                
+                if ui_state.remaining_energy then         
+                    local consumption = ui_state.remaining_energy - fuel.energy
+                    if consumption ~= 0 then
+                        local timeTaken = game.tick - ui_state.synced_tick
+                        ui_state.estimated_consumption = consumption * (60 / timeTaken)
+                    end
+                end
+                
+                ui_state.synced_tick = game.tick
+                ui_state.remaining_energy = fuel.energy
+                ui_state.item_name = fuel.name
+                
+                ensureWindow(player.index)
+                syncDataToUI(player.index)
             end
-            
-            ui_state.synced_tick = game.tick
-            ui_state.remaining_energy = jetpack.fuel.energy
-            ui_state.item_name = jetpack.fuel.name
-            
-            ensureWindow(jetpack.player_index)
-            syncDataToUI(jetpack.player_index)
-        end
-    end    
-    
-    for player_index, ui_state in pairs(global.ui_state) do
-        if not any(jetpacks, function(jetpack) return jetpack and jetpack.player_index == player_index end) then
-            closeGui(player_index)
         end
     end
 end
@@ -173,9 +167,7 @@ event.register(defines.events.on_gui_location_changed, function(e)
     global.ui_state[e.player_index].location = e.element.location
 end)
 
-script.on_nth_tick(60, syncData)
-
-event.register('jetpack', syncData)
+script.on_nth_tick(5, syncData)
 
 event.on_load(function()
   gui.build_lookup_tables()
