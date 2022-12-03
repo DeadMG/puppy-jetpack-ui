@@ -90,7 +90,7 @@ function closeGui(player_index)
     if rootgui[windowName] then
         rootgui[windowName].destroy()	
         if global.ui_state and global.ui_state[player_index] then
-            global.ui_state[player_index] = {}
+            global.ui_state[player_index].dialog = nil
         end
     end
 end
@@ -142,18 +142,22 @@ function syncData()
                 
                 if ui_state.remaining_energy then         
                     local consumption = ui_state.remaining_energy - fuel.energy
-                    if consumption ~= 0 then
-                        local timeTaken = game.tick - ui_state.synced_tick
-                        ui_state.estimated_consumption = consumption * (60 / timeTaken)
-                    end
+                    local timeTaken = game.tick - ui_state.synced_tick
+                    ui_state.estimated_consumption = consumption * (60 / timeTaken)
                 end
                 
                 ui_state.synced_tick = game.tick
                 ui_state.remaining_energy = fuel.energy
                 ui_state.item_name = fuel.name
                 
-                ensureWindow(player.index)
-                syncDataToUI(player.index)
+                if ui_state.estimated_consumption == 0 then
+                    closeGui(player.index)
+                else
+                    if ui_state.estimated_consumption then
+                        ensureWindow(player.index)
+                        syncDataToUI(player.index)
+                    end
+                end
             end
         end
     end
