@@ -132,13 +132,14 @@ function syncData()
         local character = player.character
         if character and character.valid then
             local is_jetpacking = remote.call("jetpack", "is_jetpacking", {character=character})
-            if not is_jetpacking then
+            local fuel = fuels[character.unit_number]
+            
+            if not is_jetpacking or not fuel then
                 closeGui(player.index)
             else
                 global.ui_state[player.index] = global.ui_state[player.index] or {}
                 
                 local ui_state = global.ui_state[player.index]
-                local fuel = fuels[character.unit_number]
                 
                 if ui_state.remaining_energy then         
                     local consumption = ui_state.remaining_energy - fuel.energy
