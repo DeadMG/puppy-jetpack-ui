@@ -31,7 +31,8 @@ function syncDataToUI(player_index)
     
     local fuels = remote.call('jetpack', 'get_fuels', {})    
     local total = ui_state.remaining_energy
-    for fuelType, _ in pairs(fuels) do
+    for _, fuel in pairs(fuels) do
+        local fuelType = fuel.fuel_name
         local proto = game.item_prototypes[fuelType]
         if proto then
             total = total + player.get_item_count(fuelType) * proto.fuel_value
