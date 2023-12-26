@@ -50,8 +50,8 @@ end
 
 local function is_position_off_screen(position, resolution)
     return position.x < 0 or position.y < 0 or
-           position.x > resolution.width or
-           position.y > resolution.height
+           position.x > (resolution.width - 20) or
+           position.y > (resolution.height - 20)
 end
 
 function ensureWindow(player_index)
