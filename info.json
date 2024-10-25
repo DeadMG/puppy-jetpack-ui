@@ -1,9 +1,9 @@
 {
   "name": "puppy-jetpack-ui",
-  "version": "0.1.9",
+  "version": "0.2.0",
   "title": "Puppy's Jetpack UI",
   "author": "Puppy",
-  "factorio_version": "1.1",
-  "dependencies": ["jetpack >= 0.3.7", "flib > 0.9.2"],
+  "factorio_version": "2.0",
+  "dependencies": ["jetpack >= 0.4.4", "flib >= 0.15.0"],
   "description": "Adds a UI to show remaining fuel for the Jetpack."
 }

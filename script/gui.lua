@@ -1,7 +1,6 @@
-local gui = require("lib.gui")
-local event = require("__flib__.event")
+local gui = require("__flib__.gui")
 
-local windowName = "jetpack-ui"
+local windowName = "jetpack_ui"
 
 function toolbarHeight(scale)
     return scale * 135
@@ -25,7 +24,7 @@ end
 
 function syncDataToUI(player_index)
     local player = game.get_player(player_index)    
-    local ui_state = global.ui_state[player_index]
+    local ui_state = storage.ui_state[player_index]
     
     if not ui_state.dialog then return end
     
@@ -33,13 +32,13 @@ function syncDataToUI(player_index)
     local total = ui_state.remaining_energy
     for _, fuel in pairs(fuels) do
         local fuelType = fuel.fuel_name
-        local proto = game.item_prototypes[fuelType]
+        local proto = prototypes.item[fuelType]
         if proto then
             total = total + player.get_item_count(fuelType) * proto.fuel_value
         end
     end
     
-    ui_state.dialog.fuel_remaining.value = ui_state.remaining_energy / game.item_prototypes[ui_state.item_name].fuel_value
+    ui_state.dialog.fuel_remaining.value = ui_state.remaining_energy / prototypes.item[ui_state.item_name].fuel_value
     ui_state.dialog.item_icon.sprite = "item/" .. ui_state.item_name
     ui_state.dialog.item_count.caption = player.get_item_count(ui_state.item_name)
     
@@ -61,27 +60,26 @@ function ensureWindow(player_index)
     
     if rootgui[windowName] then return end
     
-    local dialog = gui.build(rootgui, {
-        {type="frame", direction="vertical", save_as="main_window", name=windowName, style_mods={left_padding=0,left_margin=0, bottom_margin=0}, children={
+    local dialog = gui.add(rootgui, {
+        {type="frame", direction="vertical", name=windowName, style_mods={left_padding=0,left_margin=0, bottom_margin=0}, children={
             {type="flow", style_mods={left_padding=0,left_margin=-6}, children={
-                {type = "empty-widget", style="draggable_space",  style_mods={left_padding=0, left_margin=0}, save_as="drag_handle", style_mods={width=8, height=45} },
+                {type = "empty-widget", style="draggable_space",  style_mods={left_padding=0, left_margin=0}, name="drag_handle", drag_target=windowName, style_mods={width=8, height=45} },
                 {type="flow", direction="vertical", children = {
-                    {type="flow", save_as="main_container", style_mods= {vertical_align="center", left_margin=0}, children={
-                        {type="sprite", elem_type="item", sprite=nil, save_as="item_icon", resize_to_sprite=false, style_mods= { height = 16, width = 16 } },
-                        {type="label", save_as="item_count" },
-                        {type="progressbar", save_as="fuel_remaining", style_mods= { color={r=1, g=0.667, b=0.2}, vertical_align="center", width="120" } }}},
-                    {type="label", save_as="estimated_time", caption=nil },
-                }}    
+                    {type="flow", name="main_container", style_mods= {vertical_align="center", left_margin=0}, children={
+                        {type="sprite", elem_type="item", sprite=nil, name="item_icon", resize_to_sprite=false, style_mods= { height = 16, width = 16 } },
+                        {type="label", name="item_count" },
+                        {type="progressbar", name="fuel_remaining", style_mods= { color={r=1, g=0.667, b=0.2}, vertical_align="center", width="120" } }}},
+                    {type="label", name="estimated_time", caption=nil },
+                }}
             }}}}})
             
-    dialog.drag_handle.drag_target = dialog.main_window
-    global.ui_state[player_index].dialog = dialog    
+    storage.ui_state[player_index].dialog = dialog
     
-    local ui_state = global.ui_state[player_index]
+    local ui_state = storage.ui_state[player_index]
     if ui_state.location and not is_position_off_screen(ui_state.location, player.display_resolution) then
-        dialog.main_window.location = global.ui_state[player_index].location
+        dialog[windowName].location = storage.ui_state[player_index].location
     else
-        dialog.main_window.location = { 0, player.display_resolution.height - toolbarHeight(player.display_scale) }
+        dialog[windowName].location = { 0, player.display_resolution.height - toolbarHeight(player.display_scale) }
     end
 end
 
@@ -96,33 +94,11 @@ function closeGui(player_index)
     local rootgui = player.gui.screen
     if rootgui[windowName] then
         rootgui[windowName].destroy()	
-        if global.ui_state and global.ui_state[player_index] then
-            global.ui_state[player_index].dialog = nil
+        if storage.ui_state and storage.ui_state[player_index] then
+            storage.ui_state[player_index].dialog = nil
         end
     end
 end
-
-function registerHandlers()
-    gui.add_handlers({
-        jetpack_ui_handlers = {
-            close_button = {
-                on_gui_click = function(e)
-                    closeGui(e.player_index)
-                end -- on_gui_click
-            }
-        }
-    })
-    gui.register_handlers()
-end
-
-function registerTemplates() 
-  gui.add_templates{
-    frame_action_button = {type="sprite-button", style="frame_action_button", mouse_button_filter={"left"}},
-  }
-end
-
-registerHandlers()
-registerTemplates()
 
 function any(table, filter)
     for _, value in pairs(table) do
@@ -132,7 +108,7 @@ function any(table, filter)
 end
 
 function syncData()
-    global.ui_state = global.ui_state or {}
+    storage.ui_state = storage.ui_state or {}
     
     local fuels = remote.call("jetpack", "get_current_fuels");
     for k, player in pairs(game.players) do
@@ -144,9 +120,9 @@ function syncData()
             if not is_jetpacking or not fuel then
                 closeGui(player.index)
             else
-                global.ui_state[player.index] = global.ui_state[player.index] or {}
+                storage.ui_state[player.index] = storage.ui_state[player.index] or {}
                 
-                local ui_state = global.ui_state[player.index]
+                local ui_state = storage.ui_state[player.index]
                 
                 if ui_state.remaining_energy then         
                     local consumption = ui_state.remaining_energy - fuel.energy
@@ -171,22 +147,26 @@ function syncData()
     end
 end
 
-event.register(defines.events.on_gui_location_changed, function(e)
+gui.add_handlers({
+    jetpack_ui_handlers = {
+        close_button = {
+            on_gui_click = function(e)
+                closeGui(e.player_index)
+            end -- on_gui_click
+        }
+    }
+});
+    
+script.on_event(defines.events.on_gui_location_changed, function(e)
     if not e.element or e.element.name ~= windowName then return end
     
-    global.ui_state = global.ui_state or {}
-    global.ui_state[e.player_index] = global.ui_state[e.player_index] or {}
-    global.ui_state[e.player_index].location = e.element.location
+    storage.ui_state = storage.ui_state or {}
+    storage.ui_state[e.player_index] = storage.ui_state[e.player_index] or {}
+    storage.ui_state[e.player_index].location = e.element.location
 end)
 
 script.on_nth_tick(5, syncData)
 
-event.on_load(function()
-  gui.build_lookup_tables()
-end)
-
-event.on_init(function()
-  gui.init()
-  gui.build_lookup_tables()
-  global.ui_state = {}
+script.on_init(function()
+  storage.ui_state = {}
 end)
